@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snapshot Cloner + Bulk Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: #f0f4ff;
+            border-color: #764ba2;
+        }
+
+        .upload-area.dragover {
+            background: #e3eaff;
+            border-color: #5a67d8;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .editor-group {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .editor-group label {
+            display: block;
+            color: #555;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card h3 {
+            font-size: 28px;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .json-preview {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Snapshot Cloner + Bulk Editor</h1>
+            <p>Export, bulk-modify, and re-import snapshots in seconds. Save 10-20 hours per white-label client.</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Import Section -->
+            <div class="section">
+                <h2>📁 Import Snapshot</h2>
+                <div id="statusMessage" class="status-message"></div>
+                
+                <div class="upload-area" id="uploadArea">
+                    <p style="font-size: 48px; margin-bottom: 10px;">📤</p>
+                    <p style="font-size: 16px; font-weight: 600; margin-bottom: 5px;">Drop JSON file here or click to browse</p>
+                    <p style="font-size: 13px; color: #666;">Supports .json files</p>
+                    <input type="file" id="fileInput" accept=".json">
+                </div>
+
+                <div class="stats" id="stats" style="display: none;">
+                    <div class="stat-card">
+                        <h3 id="fileSize">0</h3>
+                        <p>File Size (KB)</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="keyCount">0</h3>
+                        <p>Total Keys</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="modCount">0</h3>
+                        <p>Modifications</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Edit Section -->
+            <div class="section">
+                <h2>✏️ Bulk Find & Replace</h2>
+                
+                <div class="editor-group">
+                    <label>Find Text:</label>
+                    <input type="text" id="findText" placeholder="e.g., olddomain.com">
+                </div>
+
+                <div class="editor-group">
+                    <label>Replace With:</label>
+                    <input type="text" id="replaceText" placeholder="e.g., newdomain.com">
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="useRegex">
+                    <label for="useRegex" style="margin: 0;">Use Regular Expression</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="caseSensitive">
+                    <label for="caseSensitive" style="margin: 0;">Case Sensitive</label>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn" onclick="applyBulkReplace()">🔄 Apply Replace</button>
+                    <button class="btn btn-secondary" onclick="undoChanges()">↩️ Undo</button>
+                </div>
+            </div>
+
+            <!-- Quick Replace Templates -->
+            <div class="section full-width">
+                <h2>⚡ Quick Replace Templates</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                    <div class="editor-group">
+                        <label>🌐 Replace Domain:</label>
+                        <input type="text" id="oldDomain" placeholder="old-domain.com">
+                        <input type="text" id="newDomain" placeholder="new-domain.com" style="margin-top: 8px;">
+                        <button class="btn" onclick="replaceDomain()" style="margin-top: 8px; width: 100%;">Replace All Domains</button>
+                    </div>
+
+                    <div class="editor-group">
+                        <label>🎨 Replace Color:</label>
+                        <input type="text" id="oldColor" placeholder="#667eea">
+                        <input type="text" id="newColor" placeholder="#ff6b6b" style="margin-top: 8px;">
+                        <button class="btn" onclick="replaceColor()" style="margin-top: 8px; width: 100%;">Replace All Colors</button>
+                    </div>
+
+                    <div class="editor-group">
+                        <label>🏷️ Replace Tag/Name:</label>
+                        <input type="text" id="oldTag" placeholder="old-tag">
+                        <input type="text" id="newTag" placeholder="new-tag" style="margin-top: 8px;">
+                        <button class="btn" onclick="replaceTag()" style="margin-top: 8px; width: 100%;">Replace Tags</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Editor -->
+            <div class="section full-width">
+                <h2>🔧 Advanced JSON Editor</h2>
+                <textarea id="jsonEditor" placeholder="JSON will appear here after import..."></textarea>
+                <div class="action-buttons">
+                    <button class="btn" onclick="validateJSON()">✓ Validate JSON</button>
+                    <button class="btn btn-secondary" onclick="formatJSON()">📐 Format JSON</button>
+                    <button class="btn" onclick="updateFromEditor()">💾 Update from Editor</button>
+                </div>
+            </div>
+
+            <!-- Smart Replace Tools -->
+            <div class="section full-width">
+                <h2>🎯 Smart Replace Tools</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <div class="editor-group">
+                        <label>📧 Replace Email:</label>
+                        <input type="text" id="oldEmail" placeholder="old@email.com">
+                        <input type="text" id="newEmail" placeholder="new@email.com" style="margin-top: 8px;">
+                        <button class="btn" onclick="replaceEmail()" style="margin-top: 8px; width: 100%;">Replace Emails</button>
+                    </div>
+
+                    <div class="editor-group">
+                        <label>📞 Replace Phone:</label>
+                        <input type="text" id="oldPhone" placeholder="555-1234">
+                        <input type="text" id="newPhone" placeholder="555-5678" style="margin-top: 8px;">
+                        <button class="btn" onclick="replacePhone()" style="margin-top: 8px; width: 100%;">Replace Phones</button>
+                    </div>
+
+                    <div class="editor-group">
+                        <label>🏢 Replace Company:</label>
+                        <input type="text" id="oldCompany" placeholder="Old Company">
+                        <input type="text" id="newCompany" placeholder="New Company" style="margin-top: 8px;">
+                        <button class="btn" onclick="replaceCompany()" style="margin-top: 8px; width: 100%;">Replace Company</button>
+                    </div>
+
+                    <div class="editor-group">
+                        <label>🔗 Replace URL Protocol:</label>
+                        <select id="urlProtocol" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; margin-top: 8px;">
+                            <option value="http-to-https">HTTP → HTTPS</option>
+                            <option value="https-to-http">HTTPS → HTTP</option>
+                        </select>
+                        <button class="btn" onclick="replaceProtocol()" style="margin-top: 8px; width: 100%;">Update Protocol</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Operations -->
+            <div class="section full-width">
+                <h2>⚡ One-Click Batch Operations</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <button class="btn" onclick="removeAllImages()">🖼️ Remove All Images</button>
+                    <button class="btn" onclick="removeAllVideos()">🎥 Remove All Videos</button>
+                    <button class="btn" onclick="removeAllScripts()">📜 Remove All Scripts</button>
+                    <button class="btn" onclick="removeComments()">💬 Remove Comments</button>
+                    <button class="btn" onclick="minifyJSON()">📦 Minify JSON</button>
+                    <button class="btn" onclick="beautifyJSON()">✨ Beautify JSON</button>
+                    <button class="btn" onclick="sortKeys()">🔤 Sort Keys A-Z</button>
+                    <button class="btn" onclick="removeEmptyValues()">🧹 Clean Empty Values</button>
+                </div>
+            </div>
+
+            <!-- Multi-Replace -->
+            <div class="section full-width">
+                <h2>📝 Multi-Replace (Bulk List)</h2>
+                <p style="color: #666; margin-bottom: 15px; font-size: 14px;">Enter multiple find/replace pairs (one per line, format: find|replace)</p>
+                
+                <textarea id="multiReplace" placeholder="olddomain.com|newdomain.com
+old-color|new-color
+OldBrand|NewBrand" style="min-height: 150px;"></textarea>
+                
+                <div class="action-buttons">
+                    <button class="btn" onclick="applyMultiReplace()">🔄 Apply All Replacements</button>
+                    <button class="btn btn-secondary" onclick="loadTemplate()">📋 Load Template</button>
+                </div>
+            </div>
+
+            <!-- Search & Preview -->
+            <div class="section full-width">
+                <h2>🔍 Search & Preview Changes</h2>
+                
+                <div class="editor-group">
+                    <label>Search in JSON:</label>
+                    <input type="text" id="searchQuery" placeholder="Search for any text...">
+                    <button class="btn" onclick="searchInJSON()" style="margin-top: 8px; width: 100%;">🔎 Find All Matches</button>
+                </div>
+
+                <div id="searchResults" style="background: white; padding: 15px; border-radius: 6px; margin-top: 15px; display: none;">
+                    <h3 style="margin-bottom: 10px; color: #333;">Search Results:</h3>
+                    <div id="searchResultsContent" style="max-height: 200px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 12px;"></div>
+                </div>
+            </div>
+
+            <!-- Export Section -->
+            <div class="section full-width">
+                <h2>💾 Export Modified Snapshot</h2>
+                
+                <div class="editor-group">
+                    <label>New Snapshot Name:</label>
+                    <input type="text" id="snapshotName" placeholder="client-name-snapshot-v2">
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="downloadJSON()">⬇️ Download JSON</button>
+                    <button class="btn" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+                    <button class="btn" onclick="downloadBackup()">💾 Save Backup</button>
+                    <button class="btn btn-secondary" onclick="resetEditor()">🔄 Reset All</button>
+                    <button class="btn" onclick="compareVersions()">🔀 Compare Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let originalData = null;
+        let currentData = null;
+        let modificationCount = 0;
+        let history = [];
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.json')) {
+                showStatus('Please upload a valid JSON file', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    originalData = data;
+                    currentData = JSON.parse(JSON.stringify(data));
+                    history = [JSON.parse(JSON.stringify(data))];
+                    modificationCount = 0;
+                    
+                    updateStats(file.size);
+                    updateEditor();
+                    showStatus('Snapshot loaded successfully!', 'success');
+                    
+                    // Set default snapshot name
+                    document.getElementById('snapshotName').value = file.name.replace('.json', '-modified');
+                } catch (error) {
+                    showStatus('Error parsing JSON: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function updateStats(fileSize) {
+            document.getElementById('stats').style.display = 'grid';
+            document.getElementById('fileSize').textContent = (fileSize / 1024).toFixed(2);
+            document.getElementById('keyCount').textContent = countKeys(currentData);
+            document.getElementById('modCount').textContent = modificationCount;
+        }
+
+        function countKeys(obj, count = 0) {
+            for (let key in obj) {
+                count++;
+                if (typeof obj[key] === 'object' && obj[key] !== null) {
+                    count = countKeys(obj[key], count);
+                }
+            }
+            return count;
+        }
+
+        function updateEditor() {
+            document.getElementById('jsonEditor').value = JSON.stringify(currentData, null, 2);
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function saveToHistory() {
+            history.push(JSON.parse(JSON.stringify(currentData)));
+            if (history.length > 20) history.shift();
+        }
+
+        function applyBulkReplace() {
+            if (!currentData) {
+                showStatus('Please import a snapshot first', 'error');
+                return;
+            }
+
+            const findText = document.getElementById('findText').value;
+            const replaceText = document.getElementById('replaceText').value;
+            const useRegex = document.getElementById('useRegex').checked;
+            const caseSensitive = document.getElementById('caseSensitive').checked;
+
+            if (!findText) {
+                showStatus('Please enter text to find', 'error');
+                return;
+            }
+
+            saveToHistory();
+
+            try {
+                const flags = caseSensitive ? 'g' : 'gi';
+                const pattern = useRegex ? new RegExp(findText, flags) : new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+                
+                const jsonString = JSON.stringify(currentData);
+                const newJsonString = jsonString.replace(pattern, replaceText);
+                currentData = JSON.parse(newJsonString);
+                
+                modificationCount++;
+                updateStats(new Blob([newJsonString]).size);
+                updateEditor();
+                showStatus(`Replaced successfully! ${modificationCount} modifications made.`, 'success');
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        function replaceDomain() {
+            const oldDomain = document.getElementById('oldDomain').value;
+            const newDomain = document.getElementById('newDomain').value;
+
+            if (!oldDomain || !newDomain) {
+                showStatus('Please enter both old and new domain', 'error');
+                return;
+            }
+
+            document.getElementById('findText').value = oldDomain;
+            document.getElementById('replaceText').value = newDomain;
+            document.getElementById('useRegex').checked = false;
+            document.getElementById('caseSensitive').checked = false;
+            applyBulkReplace();
+        }
+
+        function replaceColor() {
+            const oldColor = document.getElementById('oldColor').value;
+            const newColor = document.getElementById('newColor').value;
+
+            if (!oldColor || !newColor) {
+                showStatus('Please enter both old and new color', 'error');
+                return;
+            }
+
+            document.getElementById('findText').value = oldColor;
+            document.getElementById('replaceText').value = newColor;
+            document.getElementById('useRegex').checked = false;
+            document.getElementById('caseSensitive').checked = false;
+            applyBulkReplace();
+        }
+
+        function replaceTag() {
+            const oldTag = document.getElementById('oldTag').value;
+            const newTag = document.getElementById('newTag').value;
+
+            if (!oldTag || !newTag) {
+                showStatus('Please enter both old and new tag', 'error');
+                return;
+            }
+
+            document.getElementById('findText').value = oldTag;
+            document.getElementById('replaceText').value = newTag;
+            document.getElementById('useRegex').checked = false;
+            document.getElementById('caseSensitive').checked = false;
+            applyBulkReplace();
+        }
+
+        function undoChanges() {
+            if (history.length > 1) {
+                history.pop();
+                currentData = JSON.parse(JSON.stringify(history[history.length - 1]));
+                modificationCount = Math.max(0, modificationCount - 1);
+                updateStats(new Blob([JSON.stringify(currentData)]).size);
+                updateEditor();
+                showStatus('Undo successful', 'success');
+            } else {
+                showStatus('Nothing to undo', 'error');
+            }
+        }
+
+        function validateJSON() {
+            const jsonText = document.getElementById('jsonEditor').value;
+            try {
+                JSON.parse(jsonText);
+                showStatus('JSON is valid!', 'success');
+            } catch (error) {
+                showStatus('Invalid JSON: ' + error.message, 'error');
+            }
+        }
+
+        function formatJSON() {
+            const jsonText = document.getElementById('jsonEditor').value;
+            try {
+                const parsed = JSON.parse(jsonText);
+                document.getElementById('jsonEditor').value = JSON.stringify(parsed, null, 2);
+                showStatus('JSON formatted successfully', 'success');
+            } catch (error) {
+                showStatus('Cannot format invalid JSON', 'error');
+            }
+        }
+
+        function updateFromEditor() {
+            const jsonText = document.getElementById('jsonEditor').value;
+            try {
+                const parsed = JSON.parse(jsonText);
+                saveToHistory();
+                currentData = parsed;
+                modificationCount++;
+                updateStats(new Blob([jsonText]).size);
+                showStatus('Data updated from editor', 'success');
+            } catch (error) {
+                showStatus('Invalid JSON in editor: ' + error.message, 'error');
+            }
+        }
+
+        function downloadJSON() {
+            if (!currentData) {
+                showStatus('No data to download', 'error');
+                return;
+            }
+
+            const filename = document.getElementById('snapshotName').value || 'modified-snapshot';
+            const jsonString = JSON.stringify(currentData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showStatus('Snapshot downloaded successfully!', 'success');
+        }
+
+        function copyToClipboard() {
+            if (!currentData) {
+                showStatus('No data to copy', 'error');
+                return;
+            }
+
+            const jsonString = JSON.stringify(currentData, null, 2);
+            navigator.clipboard.writeText(jsonString).then(() => {
+                showStatus('JSON copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        function resetEditor() {
+            if (confirm('Are you sure you want to reset all changes?')) {
+                currentData = originalData ? JSON.parse(JSON.stringify(originalData)) : null;
+                history = currentData ? [JSON.parse(JSON.stringify(currentData))] : [];
+                modificationCount = 0;
+                if (currentData) {
+                    updateStats(new Blob([JSON.stringify(currentData)]).size);
+                    updateEditor();
+                }
+                document.getElementById('findText').value = '';
+                document.getElementById('replaceText').value = '';
+                document.getElementById('oldDomain').value = '';
+                document.getElementById('newDomain').value = '';
+                document.getElementById('oldColor').value = '';
+                document.getElementById('newColor').value = '';
+                document.getElementById('oldTag').value = '';
+                document.getElementById('newTag').value = '';
+                showStatus('Editor reset to original snapshot', 'success');
+            }
+        }
+    </script>
+</body>
+</html>
